@@ -135,7 +135,7 @@ impl Drop for StaticStr {
             // - this should only be used within Template
             //   and remain as a private field
             let _: Box<str> = unsafe {
-                Box::from_raw(leaked as *const str as *mut str)
+                Box::from_raw(std::ptr::from_ref::<str>(leaked).cast_mut())
             };
         }
     }
@@ -256,7 +256,7 @@ impl TryFrom<LoaderConfig<'_>> for HashMapLoader {
         let dir_path: &Path = dir.as_ref();
         let mut ext: String = config.templates_extension.into();
         if !ext.starts_with('.') {
-            ext.insert_str(0, ".");
+            ext.insert(0, '.');
         }
         let max_size = NonZeroUsize::new(config.cache_size)
             .ok_or(MoostacheError::ConfigErrorNonPositiveCacheSize)?;
@@ -381,7 +381,7 @@ impl TryFrom<LoaderConfig<'_>> for FileLoader {
         let dir_path: &Path = dir.as_ref();
         let mut ext: String = config.templates_extension.into();
         if !ext.starts_with('.') {
-            ext.insert_str(0, ".");
+            ext.insert(0, '.');
         }
         let max_size = NonZeroUsize::new(config.cache_size)
             .ok_or(MoostacheError::ConfigErrorNonPositiveCacheSize)?;
@@ -559,7 +559,7 @@ impl Display for InternalError {
             ParseErrorNoContent => write!(f, "parse error: empty moostache template"),
             ParseErrorUnclosedSectionTags => write!(f, "parse error: unclosed section tags"),
             ParseErrorInvalidEscapedVariableTag => write!(f, "parse error: invalid escaped variable tag, expected {{{{ variable }}}}"),
-            ParseErrorInvalidUnescapedVariableTag => write!(f, "{}", "parse error: invalid unescaped variable tag, expected {{{{{{ variable }}}}}}"),
+            ParseErrorInvalidUnescapedVariableTag => write!(f, "parse error: invalid unescaped variable tag, expected {{{{{{ variable }}}}}}"),
             ParseErrorInvalidSectionEndTag => write!(f, "parse error: invalid section eng tag, expected {{{{/ section }}}}"),
             ParseErrorMismatchedSectionEndTag => write!(f, "parse error: mismatched section eng tag, expected {{{{# section }}}} ... {{{{/ section }}}}"),
             ParseErrorInvalidCommentTag => write!(f, "parse error: invalid comment tag, expected {{{{! comment }}}}"),
@@ -579,7 +579,7 @@ impl Display for MoostacheError {
             if name.is_empty() {
                 return "anonymous".to_owned();
             }
-            format!("\"{}\"", name)
+            format!("\"{name}\"")
         }
         match self {
             ParseErrorGeneric(s) => write!(f, "error parsing {} template", template_name(s)),
@@ -656,8 +656,8 @@ fn parse<T: Into<StaticStr>>(template: T) -> Result<Template, InternalError> {
     }
 }
 
-fn _parse<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn _parse<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Vec<Fragment<'src>>, InternalError> {
     if input.input.is_empty() {
         return Err(ErrMode::Cut(InternalError::ParseErrorNoContent));
@@ -665,11 +665,11 @@ fn _parse<'src, 'skips>(
 
     let frags = repeat(1.., alt((
         parse_literal.map(Some),
-        parse_section_end.map(|_| None),
+        parse_section_end.map(|()| None),
         parse_section_start.map(Some),
         parse_inverted_section_start.map(Some),
         parse_unescaped_variable.map(Some),
-        parse_comment.map(|_| None),
+        parse_comment.map(|()| None),
         parse_partial.map(Some),
         parse_escaped_variable.map(Some),
     )))
@@ -689,30 +689,27 @@ fn _parse<'src, 'skips>(
     Ok(frags)
 }
 
-fn parse_literal<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_literal<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Fragment<'src>, InternalError> {
     if input.is_empty() {
         return Err(ErrMode::Backtrack(InternalError::ParseErrorGeneric));
     }
 
-    match input.input.find_slice("{{") {
-        Some(range) => {
-            if range.start == 0 {
-                return Err(ErrMode::Backtrack(InternalError::ParseErrorGeneric));
-            }
-            let literal = &input.input[..range.start];
-            let frag = Fragment::Literal(literal);
-            input.input = &input.input[range.start..];
-            input.state.visited_fragment();
-            return Ok(frag);
-        },
-        None => {
-            let frag = Fragment::Literal(input);
-            input.input = &input.input[input.input.len()..];
-            input.state.visited_fragment();
-            return Ok(frag);
+    if let Some(range) = input.input.find_slice("{{") {
+        if range.start == 0 {
+            return Err(ErrMode::Backtrack(InternalError::ParseErrorGeneric));
         }
+        let literal = &input.input[..range.start];
+        let frag = Fragment::Literal(literal);
+        input.input = &input.input[range.start..];
+        input.state.visited_fragment();
+        Ok(frag)
+    } else {
+        let frag = Fragment::Literal(input);
+        input.input = &input.input[input.input.len()..];
+        input.state.visited_fragment();
+        Ok(frag)
     }
 }
 
@@ -720,15 +717,15 @@ fn is_variable_name(c: char) -> bool {
     matches!(c, 'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_')
 }
 
-fn parse_variable_name<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_variable_name<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<&'src str, InternalError> {
     take_while(1.., is_variable_name)
         .parse_next(input)
 }
 
-fn parse_variable_path<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_variable_path<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<&'src str, InternalError> {
     delimited(
         multispace0,
@@ -745,8 +742,8 @@ fn parse_variable_path<'src, 'skips>(
         .parse_next(input)
 }
 
-fn parse_escaped_variable<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_escaped_variable<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Fragment<'src>, InternalError> {
     let result = delimited(
         literal("{{"),
@@ -755,15 +752,15 @@ fn parse_escaped_variable<'src, 'skips>(
     )
         .context(InternalError::ParseErrorInvalidEscapedVariableTag)
         .parse_next(input)
-        .map(|variable| Fragment::EscapedVariable(variable));
+        .map(Fragment::EscapedVariable);
     if result.is_ok() {
         input.state.visited_fragment();
     }
     result
 }
 
-fn parse_unescaped_variable<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_unescaped_variable<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Fragment<'src>, InternalError> {
     let result = delimited(
         literal("{{{"),
@@ -772,15 +769,15 @@ fn parse_unescaped_variable<'src, 'skips>(
     )
         .context(InternalError::ParseErrorInvalidUnescapedVariableTag)
         .parse_next(input)
-        .map(|variable| Fragment::UnescapedVariable(variable));
+        .map(Fragment::UnescapedVariable);
     if result.is_ok() {
         input.state.visited_fragment();
     }
     result
 }
 
-fn parse_comment<'src, 'skips>(
-    input: &mut Input<'src, 'skips>
+fn parse_comment(
+    input: &mut Input<'_, '_>
 ) -> PResult<(), InternalError> {
     if input.input.starts_with("{{!") {
         if let Some(range) = input.input.find_slice("}}") {
@@ -792,8 +789,8 @@ fn parse_comment<'src, 'skips>(
     Err(ErrMode::Backtrack(InternalError::ParseErrorGeneric))
 }
 
-fn parse_section_start<'src, 'skips>(
-    input: &mut Input<'src, 'skips>
+fn parse_section_start<'src>(
+    input: &mut Input<'src, '_>
 ) -> PResult<Fragment<'src>, InternalError> {
     let variable = delimited(
         literal("{{#"),
@@ -808,8 +805,8 @@ fn parse_section_start<'src, 'skips>(
     Ok(Fragment::Section(variable))
 }
 
-fn parse_inverted_section_start<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_inverted_section_start<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Fragment<'src>, InternalError> {
     let variable = delimited(
         literal("{{^"),
@@ -824,8 +821,8 @@ fn parse_inverted_section_start<'src, 'skips>(
     Ok(Fragment::InvertedSection(variable))
 }
 
-fn parse_section_end<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_section_end(
+    input: &mut Input<'_, '_>,
 ) -> PResult<(), InternalError> {
     let variable = delimited(
         literal("{{/"),
@@ -881,15 +878,15 @@ fn is_file_name(c: char) -> bool {
     c.is_ascii() && (VALID_FILE_CHARS & (1u128 << c as u32)) != 0
 }
 
-fn parse_file_name<'src, 'skips>(
-    input: &mut Input<'src, 'skips>
+fn parse_file_name<'src>(
+    input: &mut Input<'src, '_>
 ) -> PResult<&'src str, InternalError> {
     take_while(1.., is_file_name)
         .parse_next(input)
 }
 
-fn parse_file_path<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_file_path<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<&'src str, InternalError> {
     delimited(
         multispace0,
@@ -903,8 +900,8 @@ fn parse_file_path<'src, 'skips>(
         .parse_next(input)
 }
 
-fn parse_partial<'src, 'skips>(
-    input: &mut Input<'src, 'skips>,
+fn parse_partial<'src>(
+    input: &mut Input<'src, '_>,
 ) -> PResult<Fragment<'src>, InternalError> {
     let result = delimited(
         literal("{{>"),
@@ -913,7 +910,7 @@ fn parse_partial<'src, 'skips>(
     )
         .context(InternalError::ParseErrorInvalidPartialTag)
         .parse_next(input)
-        .map(|file_path| Fragment::Partial(file_path));
+        .map(Fragment::Partial);
     if result.is_ok() {
         input.state.visited_fragment();
     }
@@ -1160,7 +1157,7 @@ fn resolve_value<'a>(path: &str, scopes: &[&'a serde_json::Value]) -> &'a serde_
         return scopes[scopes.len() - 1];
     }
     let mut resolved_value = &Value::Null;
-    'parent: for value in scopes.into_iter().rev() {
+    'parent: for value in scopes.iter().rev() {
         resolved_value = *value;
         for (idx, key) in path.split('.').enumerate() {
             match resolved_value {
@@ -1169,43 +1166,37 @@ fn resolve_value<'a>(path: &str, scopes: &[&'a serde_json::Value]) -> &'a serde_
                     // the key is an integer index
                     println!("path {path} idx {idx} key {key} in array");
                     let parsed_index = key.parse::<usize>();
-                    match parsed_index {
-                        Ok(index) => {
-                            println!("index {index} in array");
-                            let get_option = array.get(index);
-                            match get_option {
-                                Some(get) => {
-                                    resolved_value = get;
-                                },
-                                None => {
-                                    return &Value::Null;
-                                },
-                            }
-                        },
-                        Err(_) => {
-                            // key doesn't exist in this scope
-                            if idx == 0 {
-                                // go to parent scope
-                                continue 'parent;
-                            }
-                            return &Value::Null;
-                        },
+                    if let Ok(index) = parsed_index {
+                        println!("index {index} in array");
+                        let get_option = array.get(index);
+                        match get_option {
+                            Some(get) => {
+                                resolved_value = get;
+                            },
+                            None => {
+                                return &Value::Null;
+                            },
+                        }
+                    } else {
+                        // key doesn't exist in this scope
+                        if idx == 0 {
+                            // go to parent scope
+                            continue 'parent;
+                        }
+                        return &Value::Null;
                     }
                 },
                 Value::Object(object) => {
                     let get_option = object.get(key);
-                    match get_option {
-                        Some(get) => {
-                            resolved_value = get;
-                        },
-                        None => {
-                            // key doesn't exist in this scope
-                            if idx == 0 {
-                                // go to parent scope
-                                continue 'parent;
-                            }
-                            return &Value::Null;
-                        },
+                    if let Some(get) = get_option {
+                        resolved_value = get;
+                    } else {
+                        // key doesn't exist in this scope
+                        if idx == 0 {
+                            // go to parent scope
+                            continue 'parent;
+                        }
+                        return &Value::Null;
                     }
                 },
                 // we got a null, string, or number
@@ -1231,7 +1222,7 @@ impl<W: Write> Write for EscapeHtml<'_, W> {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let written = buf.len();
         self.write_all(buf)
-            .map(|_| written)
+            .map(|()| written)
     }
     fn write_all(&mut self, buf: &[u8]) -> io::Result<()> {
         let mut start = 0;
