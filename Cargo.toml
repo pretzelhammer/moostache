@@ -1,11 +1,14 @@
 [package]
 name = "moostache"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 description = "Mustache template engine"
-license = "MIT"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/pretzelhammer/moostache"
 documentation = "https://docs.rs/moostache"
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 winnow = "0.6.20"
