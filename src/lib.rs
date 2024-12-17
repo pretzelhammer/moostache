@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use fnv::FnvBuildHasher;
 use lru::LruCache;
 use serde::Serialize;
