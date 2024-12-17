@@ -1,6 +1,6 @@
 [package]
 name = "moostache"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Mustache template engine"
 license = "MIT"
