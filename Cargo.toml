@@ -2,5 +2,9 @@
 name = "moostache"
 version = "0.1.0"
 edition = "2021"
+description = "Mustache template engine"
+license = "MIT"
+repository = "https://github.com/pretzelhammer/moostache"
+documentation = "https://docs.rs/moostache"
 
 [dependencies]
