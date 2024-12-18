@@ -1,12 +1,13 @@
 [package]
 name = "moostache"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Mustache template engine"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pretzelhammer/moostache"
 documentation = "https://docs.rs/moostache"
 keywords = ["mustache", "template", "markup", "html"]
+readme = "crates-io.md"
 include = [
     "src/**",
     "examples/**",
