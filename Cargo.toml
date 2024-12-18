@@ -1,13 +1,20 @@
 [package]
 name = "moostache"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Mustache template engine"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pretzelhammer/moostache"
 documentation = "https://docs.rs/moostache"
 keywords = ["mustache", "template", "markup", "html"]
-include = ["src/**", "crates-io.md", "Cargo.toml"]
+include = [
+    "src/**",
+    "examples/**",
+    "crates-io.md",
+    "Cargo.toml",
+    "license-apache",
+    "license-mit",
+]
 
 [lib]
 path = "src/lib.rs"
