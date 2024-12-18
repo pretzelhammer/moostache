@@ -1,4 +1,13 @@
+// moostache readme rendered on docs.rs
+#![doc = include_str!("../crates-io.md")]
+// #![deny(missing_docs)]
 #![warn(clippy::pedantic)]
+// ignored lints
+#![allow(
+    clippy::needless_pass_by_value,
+    clippy::enum_glob_use,
+    clippy::enum_variant_names,
+)]
 
 use fnv::FnvBuildHasher;
 use lru::LruCache;
@@ -18,9 +27,9 @@ use std::{
     borrow::Borrow,
     cell::RefCell,
     collections::HashMap,
-    fmt::{Display, Debug},
+    fmt::{Debug, Display},
     fs,
-    hash::{BuildHasher, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     io::{self, Write},
     num::NonZeroUsize,
     ops::Deref,
@@ -75,8 +84,10 @@ impl<'src, 'skips> State<'src, 'skips> {
             return Err(());
         }
         let skip = &mut self.section_skips[start.section_index];
-        skip.nested_sections = ((self.section_index - 1) - start.section_index) as u16;
-        skip.nested_fragments = ((self.fragment_index - 1) - start.fragment_index) as u16;
+        skip.nested_sections = u16::try_from((self.section_index - 1) - start.section_index)
+            .expect("can't have more than 65k sections within a section");
+        skip.nested_fragments = u16::try_from((self.fragment_index - 1) - start.fragment_index)
+            .expect("can't have more than 65k fragments within a section");
         Ok(())
     }
     fn still_expecting_section_ends(&self) -> bool {
@@ -162,9 +173,10 @@ pub struct Template {
 
 pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
     type Output<'a>: Deref<Target = Template> + 'a where Self: 'a;
+    type Error: From<serde_json::Error> + From<MoostacheError>;
     
     // required methods
-    fn get<'a>(&'a self, name: &str) -> Result<Self::Output<'a>, MoostacheError>;
+    fn get<'a>(&'a self, name: &str) -> Result<Self::Output<'a>, Self::Error>;
     fn insert(&mut self, name: K, value: Template) -> Option<Template>;
     fn remove(&mut self, name: &str) -> Option<Template>;
     
@@ -175,7 +187,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
         name: &str,
         value: &serde_json::Value,
         writer: &mut W,
-    ) -> Result<(), MoostacheError> {
+    ) -> Result<(), Self::Error> {
         let template = self.get(name)?;
         template.render(self, value, writer)
     }
@@ -185,9 +197,8 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
         name: &str,
         serializeable: &S,
         writer: &mut W,
-    ) -> Result<(), MoostacheError> {
-        let value = serde_json::to_value(serializeable)
-            .map_err(|_| MoostacheError::SerializationError)?;
+    ) -> Result<(), Self::Error> {
+        let value = serde_json::to_value(serializeable)?;
         self.render(
             name,
             &value,
@@ -199,7 +210,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
         &self,
         name: &str,
         value: &serde_json::Value,
-    ) -> Result<String, MoostacheError> {
+    ) -> Result<String, Self::Error> {
         let mut writer = Vec::<u8>::new();
         self.render(
             name,
@@ -219,9 +230,8 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
         &self,
         name: &str,
         serializable: &S,
-    ) -> Result<String, MoostacheError> {
-        let value = serde_json::to_value(serializable)
-            .map_err(|_| MoostacheError::SerializationError)?;
+    ) -> Result<String, Self::Error> {
+        let value = serde_json::to_value(serializable)?;
         self.render_to_string(
             name,
             &value,
@@ -267,7 +277,7 @@ impl TryFrom<LoaderConfig<'_>> for HashMapLoader {
         }
 
         let mut current_size = 0usize;
-        let mut templates: HashMap<String, Template, FnvBuildHasher> = HashMap::with_hasher(Default::default());
+        let mut templates: HashMap<String, Template, FnvBuildHasher> = HashMap::with_hasher(BuildHasherDefault::default());
         for entry in WalkDir::new(dir_path).into_iter().filter_map(Result::ok) {
             if entry.file_type().is_file() {
                 let entry_path = entry.path();
@@ -306,6 +316,7 @@ pub struct HashMapLoader<K: Borrow<str> + Eq + Hash = String, H: BuildHasher + D
 
 impl<K: Borrow<str> + Eq + Hash, H: BuildHasher + Default> TemplateLoader<K> for HashMapLoader<K, H> {
     type Output<'a> = &'a Template where K: 'a, H: 'a;
+    type Error = MoostacheError;
     fn get(&self, name: &str) -> Result<&Template, MoostacheError> {
         self.templates.get(name)
             .ok_or_else(|| MoostacheError::LoaderErrorTemplateNotFound(name.into()))
@@ -328,6 +339,7 @@ pub struct FileLoader<H: BuildHasher + Default = FnvBuildHasher> {
 
 impl TemplateLoader for FileLoader {
     type Output<'a> = Rc<Template>;
+    type Error = MoostacheError;
     fn get(&self, name: &str) -> Result<Rc<Template>, MoostacheError> {
         let mut templates = self.templates.borrow_mut();
         let template = templates.get(name);
@@ -390,7 +402,7 @@ impl TryFrom<LoaderConfig<'_>> for FileLoader {
             return Err(MoostacheError::ConfigErrorInvalidTemplatesDirectory(dir_path.into()));
         }
 
-        let templates = RefCell::new(LruCache::with_hasher(max_size, Default::default()));
+        let templates = RefCell::new(LruCache::with_hasher(max_size, BuildHasherDefault::default()));
 
         Ok(FileLoader {
             templates_directory: dir,
@@ -421,6 +433,7 @@ impl<K: Borrow<str> + Eq + Hash, V: Into<StaticStr>> TryFrom<HashMap<K, V>> for 
 
 impl TemplateLoader<&'static str> for () {
     type Output<'a> = &'a Template;
+    type Error = MoostacheError;
     fn get(&self, name: &str) -> Result<&Template, MoostacheError> {
         Err(MoostacheError::LoaderErrorTemplateNotFound(name.into()))
     }
@@ -471,56 +484,21 @@ impl MoostacheError {
         }
     }
     fn set_name(mut self, name: &str) -> Self {
+        use MoostacheError::*;
         match &mut self {
-            MoostacheError::ParseErrorGeneric(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorNoContent(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorUnclosedSectionTags(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidEscapedVariableTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidUnescapedVariableTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidSectionEndTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorMismatchedSectionEndTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidCommentTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidSectionStartTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidInvertedSectionStartTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::ParseErrorInvalidPartialTag(s) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::IoError(s, _) => {
-                s.clear();
-                s.push_str(name);
-            },
-            MoostacheError::LoaderErrorTemplateNotFound(s) => {
+            ParseErrorGeneric(s) |
+            ParseErrorNoContent(s) |
+            ParseErrorUnclosedSectionTags(s) |
+            ParseErrorInvalidEscapedVariableTag(s) |
+            ParseErrorInvalidUnescapedVariableTag(s) |
+            ParseErrorInvalidSectionEndTag(s) |
+            ParseErrorMismatchedSectionEndTag(s) |
+            ParseErrorInvalidCommentTag(s) |
+            ParseErrorInvalidSectionStartTag(s) |
+            ParseErrorInvalidInvertedSectionStartTag(s) |
+            ParseErrorInvalidPartialTag(s) |
+            IoError(s, _) |
+            LoaderErrorTemplateNotFound(s) => {
                 s.clear();
                 s.push_str(name);
             },
@@ -534,8 +512,14 @@ impl MoostacheError {
     }
 }
 
+impl From<serde_json::Error> for MoostacheError {
+    fn from(_: serde_json::Error) -> Self {
+        MoostacheError::SerializationError
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
-pub enum InternalError {
+enum InternalError {
     ParseErrorGeneric,
     ParseErrorNoContent,
     ParseErrorUnclosedSectionTags,
@@ -934,7 +918,7 @@ impl Template {
         loader: &T,
         value: &serde_json::Value,
         writer: &mut W,
-    ) -> Result<(), MoostacheError> {
+    ) -> Result<(), T::Error> {
         let mut scopes = Vec::new();
         scopes.push(value);
         _render(
@@ -951,7 +935,7 @@ impl Template {
         loader: &T,
         serializeable: &S,
         writer: &mut W,
-    ) -> Result<(), MoostacheError> {
+    ) -> Result<(), T::Error> {
         let value = serde_json::to_value(serializeable)
             .map_err(|_| MoostacheError::SerializationError)?;
         self.render(
@@ -989,7 +973,7 @@ impl Template {
         &self,
         loader: &T,
         value: &serde_json::Value,
-    ) -> Result<String, MoostacheError> {
+    ) -> Result<String, T::Error> {
         let mut writer = Vec::<u8>::new();
         self.render(
             loader,
@@ -1019,7 +1003,7 @@ impl Template {
         &self,
         loader: &T,
         serializable: &S,
-    ) -> Result<String, MoostacheError> {
+    ) -> Result<String, T::Error> {
         let value = serde_json::to_value(serializable)
             .map_err(|_| MoostacheError::SerializationError)?;
         self.render_to_string(
@@ -1047,7 +1031,7 @@ fn _render<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, W: Write>(
     loader: &T,
     scopes: &mut Vec<&serde_json::Value>,
     writer: &mut W,
-) -> Result<(), MoostacheError> {
+) -> Result<(), T::Error> {
     use serde_json::Value;
     let mut frag_idx = 0;
     let mut section_idx = 0;

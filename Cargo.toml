@@ -1,12 +1,13 @@
 [package]
 name = "moostache"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 description = "Mustache template engine"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pretzelhammer/moostache"
 documentation = "https://docs.rs/moostache"
 keywords = ["mustache", "template", "markup", "html"]
+include = ["src/**", "crates-io.md", "Cargo.toml"]
 
 [lib]
 path = "src/lib.rs"
@@ -22,3 +23,4 @@ fnv = "1.0.7"
 [dev-dependencies]
 serde_derive = "1.0.215"
 maplit = "1.0.2"
+indoc = "2"
