@@ -1,5 +1,5 @@
 // moostache readme rendered on docs.rs
-#![doc = include_str!("../crates-io.md")]
+#![doc = include_str!("./lib.md")]
 #![deny(missing_docs)]
 #![warn(clippy::pedantic)]
 // ignored lints
@@ -915,7 +915,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
 ///     LoaderConfig::default(),
 ///     LoaderConfig {
 ///         templates_directory: "./templates/",
-///         templates_extension: ".html",
+///         templates_extension: "html",
 ///         cache_size: 200,
 ///     },
 /// );
@@ -930,10 +930,16 @@ pub struct LoaderConfig<'a> {
     pub cache_size: usize,
 }
 
+#[cfg(windows)]
+const DEFAULT_TEMPLATES_DIRECTORY: &str = ".\\templates\\";
+
+#[cfg(not(windows))]
+const DEFAULT_TEMPLATES_DIRECTORY: &str = "./templates/";
+
 impl Default for LoaderConfig<'_> {
     fn default() -> Self {
         Self {
-            templates_directory: "./templates/",
+            templates_directory: DEFAULT_TEMPLATES_DIRECTORY,
             templates_extension: ".html",
             cache_size: 200,
         }

@@ -6,7 +6,7 @@ It supports the following Mustache features: escaped variables, unescaped variab
 
 It does not support these Mustache features: lambdas, dynamic names, blocks, parents, or set delimiters.
 
-## guide
+## Guide
 
 To render templates you must create a type that implements the `TemplateLoader` trait and call one of its render functions. Moostache provides two implementations: `HashMapLoader` and `FileLoader`.
 
@@ -34,7 +34,7 @@ use moostache::{HashMapLoader, LoaderConfig};
 // templates, up to cache_size
 let loader = HashMapLoader::try_from(LoaderConfig {
     templates_directory: "./templates/",
-    templates_extension: ".html",
+    templates_extension: "html",
     cache_size: 200,
 })?;
 ```
@@ -86,7 +86,7 @@ use moostache::{FileLoader, LoaderConfig};
 // compiled templates in an internal LRU cache
 let loader = FileLoader::try_from(LoaderConfig {
     templates_directory: "./templates/",
-    templates_extension: ".html",
+    templates_extension: "html",
     cache_size: 200,
 })?;
 ```

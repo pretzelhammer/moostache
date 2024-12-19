@@ -24,10 +24,16 @@ struct Post<'a> {
     teaser: &'a str,
 }
 
+#[cfg(windows)]
+const TEMPLATES_DIRECTORY: &str = ".\\examples\\templates\\";
+
+#[cfg(not(windows))]
+const TEMPLATES_DIRECTORY: &str = "./examples/templates/";
+
 fn main() -> Result<(), Box<dyn Error>> {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_directory: "./examples/templates/",
-        templates_extension: ".html",
+        templates_directory: TEMPLATES_DIRECTORY,
+        templates_extension: "html",
         cache_size: 200,
     })?;
 

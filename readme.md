@@ -9,18 +9,18 @@ moostache supports the following Mustache features: escaped variables, unescaped
 
 It does not support these Mustache features: lambdas, dynamic names, blocks, parents, or set delimiters.
 
-## install
+## Install
 
 ```toml
 [dependencies]
 moostache = "*"
 ```
 
-## guide
+## Guide
 
 To render templates you must create a type that implements the `TemplateLoader` trait and call one of its render functions. Moostache provides two implementations: `HashMapLoader` and `FileLoader`.
 
-### HashMapLoader
+### `HashMapLoader`
 
 You can create a `HashMapLoader` from a hashmap:
 
@@ -44,7 +44,7 @@ use moostache::{HashMapLoader, LoaderConfig};
 // templates, up to cache_size
 let loader = HashMapLoader::try_from(LoaderConfig {
     templates_directory: "./templates/",
-    templates_extension: ".html",
+    templates_extension: "html",
     cache_size: 200,
 })?;
 ```
@@ -82,7 +82,7 @@ let rendered = loader.render_to_string("greet", &john);
 assert_eq!(rendered, "hello John!")
 ```
 
-### FileLoader
+### `FileLoader`
 
 You can create a `FileLoader` from a `LoaderConfig`:
 
@@ -96,7 +96,7 @@ use moostache::{FileLoader, LoaderConfig};
 // compiled templates in an internal LRU cache
 let loader = FileLoader::try_from(LoaderConfig {
     templates_directory: "./templates/",
-    templates_extension: ".html",
+    templates_extension: "html",
     cache_size: 200,
 })?;
 ```
@@ -105,7 +105,7 @@ Then, as explained above, you can render any template by name, passing it a type
 
 See more examples in the [examples](./examples/) directory. See the full API documentation on [docs.rs](https://docs.rs/moostache).
 
-### HashMapLoader vs FileLoader
+### `HashMapLoader` vs `FileLoader`
 
 `HashMapLoader` is a little bit faster during initial renders because it requires you to preload all templates that may be used during the render into memory. You may prefer to use the `HashMapLoader` if all of your templates can fit into memory.
 
@@ -113,10 +113,10 @@ See more examples in the [examples](./examples/) directory. See the full API doc
 
 Regardless, both impl the `TemplateLoader` trait so they each support the `insert` and `remove` methods to insert and remove templates in-between renders for additional flexibility.
 
-## alternatives
+## Alternatives
 
 If moostache doesn't meet your needs you can checkout [rust-mustache](https://github.com/nickel-org/rust-mustache) or [ramhorns](https://github.com/maciejhirsz/ramhorns). If you're not married to Mustache you can also look into [tera](https://github.com/Keats/tera) or [askama](https://github.com/rinja-rs/askama).
 
-## license
+## License
 
 Licensed under either of [Apache License, Version 2.0](./license-apache) or [MIT license](./license-mit) at your option.

@@ -1159,7 +1159,7 @@ fn test_render_partial_file() {
 #[test]
 fn test_render_partials_exceed_cache() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".tpl",
+        templates_extension: "tpl",
         cache_size: 1, // cache size of only 1
         ..LoaderConfig::default()
     }).unwrap();
@@ -1179,7 +1179,7 @@ fn test_render_partials_exceed_cache() {
 #[test]
 fn test_render_partial_invalid_comment() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1193,7 +1193,7 @@ fn test_render_partial_invalid_comment() {
 #[test]
 fn test_render_partial_invalid_escaped_variable() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1207,7 +1207,7 @@ fn test_render_partial_invalid_escaped_variable() {
 #[test]
 fn test_render_partial_invalid_unescaped_variable() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1221,7 +1221,7 @@ fn test_render_partial_invalid_unescaped_variable() {
 #[test]
 fn test_render_partial_invalid_inverted_section_start() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1235,7 +1235,7 @@ fn test_render_partial_invalid_inverted_section_start() {
 #[test]
 fn test_render_partial_invalid_section_start() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1249,7 +1249,7 @@ fn test_render_partial_invalid_section_start() {
 #[test]
 fn test_render_partial_invalid_section_end() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1263,7 +1263,7 @@ fn test_render_partial_invalid_section_end() {
 #[test]
 fn test_render_partial_mismatched_section_end() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1277,7 +1277,7 @@ fn test_render_partial_mismatched_section_end() {
 #[test]
 fn test_render_partial_unclosed_sections() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1291,7 +1291,7 @@ fn test_render_partial_unclosed_sections() {
 #[test]
 fn test_render_partial_invalid_partial() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1305,7 +1305,7 @@ fn test_render_partial_invalid_partial() {
 #[test]
 fn test_render_partial_no_content() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
@@ -1319,7 +1319,7 @@ fn test_render_partial_no_content() {
 #[test]
 fn test_render_partial_nonexistent_partial() {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_extension: ".error",
+        templates_extension: "error",
         ..LoaderConfig::default()
     }).unwrap();
     let rendered = loader.render_to_string(
