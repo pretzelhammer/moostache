@@ -519,11 +519,9 @@ fn parse_partial<'src>(
     result
 }
 
-/// # `Template`
-/// 
 /// A compiled moostache template.
 /// 
-/// # Examples
+/// ### Examples
 /// 
 /// ```rust
 /// use moostache::Template;
@@ -548,12 +546,12 @@ pub struct Template {
 }
 
 impl Template {
-    /// Parse a &'static str or String into a compiled
+    /// Parse a [`&'static str`](std::str) or [`String`] into a compiled
     /// moostache template.
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// Returns a `MoostacheError` parse error enum variant
+    /// Returns a [`MoostacheError`] parse error enum variant
     /// if parsing fails for whatever reason.
     #[inline]
     #[allow(private_bounds)]
@@ -568,10 +566,10 @@ impl Template {
 
     /// Render this template.
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     pub fn render<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, W: Write>(
         &self,
@@ -590,12 +588,13 @@ impl Template {
         )
     }
 
-    /// Render this template given a type that impls `Serialize`.
+    /// Render this template given a type that impls
+    /// [`serde::Serialize`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     pub fn render_serializable<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, W: Write, S: Serialize>(
         &self,
@@ -614,9 +613,9 @@ impl Template {
 
     /// Render this template, assuming it has no partial tags.
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// Returns a `MoostacheError` if the template contains a
+    /// Returns a [`MoostacheError`] if the template contains a
     /// partial, or serializing data during render fails for
     /// whatever reason.
     #[inline]
@@ -632,12 +631,12 @@ impl Template {
         )
     }
 
-    /// Render this template using a type which impls `Serialize`
-    /// and assuming it has no partials.
-    ///
-    /// # Errors
+    /// Render this template using a type which impls
+    /// [`serde::Serialize`] and assuming it has no partials.
     /// 
-    /// Returns a `MoostacheError` if the template contains a
+    /// ### Errors
+    /// 
+    /// Returns a [`MoostacheError`] if the template contains a
     /// partial, or serializing data during render fails for
     /// whatever reason.
     #[inline]
@@ -653,12 +652,12 @@ impl Template {
         )
     }
 
-    /// Render this template to a `String`.
+    /// Render this template to a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     pub fn render_to_string<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized>(
         &self,
@@ -681,11 +680,11 @@ impl Template {
     }
 
     /// Render this template assuming it has no partial tags
-    /// and return the result as a `String`.
+    /// and return the result as a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// Returns a `MoostacheError` if the template contains a
+    /// Returns a [`MoostacheError`] if the template contains a
     /// partial, or serializing data during render fails for
     /// whatever reason.
     #[inline]
@@ -699,13 +698,13 @@ impl Template {
         )
     }
 
-    /// Render this template given a type which impls `Serialize`
-    /// and return result as a `String`.
+    /// Render this template given a type which impls
+    /// [`serde::Serialize`] and return result as a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     pub fn render_serializable_to_string<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, S: Serialize>(
         &self,
@@ -720,12 +719,13 @@ impl Template {
         )
     }
 
-    /// Render this template given a type which impls `Serialize`,
-    /// assume it has no partials, and return result as a `String`.
+    /// Render this template given a type which impls
+    /// [`serde::Serialize`], assume it has no partials,
+    /// and return result as a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// Returns a `MoostacheError` if the template contains a
+    /// Returns a [`MoostacheError`] if the template contains a
     /// partial, or serializing data during render fails for
     /// whatever reason.
     #[inline]
@@ -765,25 +765,24 @@ impl TryFrom<String> for Template {
 // TEMPLATE LOADERS //
 //////////////////////
 
-/// # `TemplateLoader`
-/// 
 /// Loads templates and renders them.
 pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
-    /// Output type of the `get` method.
+    /// Output type of the [`get`](TemplateLoader::get) method.
     type Output<'a>: Deref<Target = Template> + 'a where Self: 'a;
-    /// Error type of the `get` and render methods.
+    /// Error type of the [`get`](TemplateLoader::get) and render methods.
     type Error: From<MoostacheError>;
     
     /// Get a template by name.
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// Returns an `Error` if getting the template fails for whatever
-    /// reason. In `HashMapLoader` this would only ever return
-    /// `MoostacheError::TemplateNotFound` since it either has the
-    /// template or it doesn't. In `FileLoader` it can return almost
-    /// any enum variant of `MoostacheError` since it lazily loads
-    /// and compiles templates on-demand.
+    /// Returns an [`Error`](TemplateLoader::Error) if getting
+    /// the template fails for whatever reason. In [`HashMapLoader`]
+    /// this would only ever return
+    /// [`MoostacheError::LoaderErrorTemplateNotFound`] since it
+    /// either has the template or it doesn't. In [`FileLoader`] it
+    /// can return almost any enum variant of [`MoostacheError`]
+    /// since it lazily loads and compiles templates on-demand.
     fn get<'a>(&'a self, name: &str) -> Result<Self::Output<'a>, Self::Error>;
 
     /// Insert a template by name.
@@ -792,13 +791,13 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
     /// Remove a template by name.
     fn remove(&mut self, name: &str) -> Option<Template>;
     
-    /// Render a template by name, using a `serde_json::Value`
-    /// as data and writing output to a `writer`.
+    /// Render a template by name, using a [`serde_json::Value`]
+    /// as data and writing output to a [`&mut impl Write`](std::io::Write).
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     fn render<W: Write>(
         &self,
@@ -811,12 +810,13 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
     }
 
     /// Render a template by name, using a type which impls
-    /// `Serialize` as data and writing output to a `writer`.
+    /// [`serde::Serialize`] as data and writing output to a
+    /// [`&mut impl Write`](std::io::Write).
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     fn render_serializable<W: Write, S: Serialize>(
         &self,
@@ -833,13 +833,13 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
         )
     }
 
-    /// Renders a template by name, using a `serde_json::Value`
-    /// as data and returning the output as a `String`.
+    /// Renders a template by name, using a [`serde_json::Value`]
+    /// as data and returning the output as a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     fn render_to_string(
         &self,
@@ -862,12 +862,13 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
     }
 
     /// Renders a template by name, using a type which impls
-    /// `Serialize` as data and returning the output as a `String`.
+    /// [`serde::Serialize`] as data and returning the output
+    /// as a [`String`].
     /// 
-    /// # Errors
+    /// ### Errors
     /// 
-    /// If using `HashMapLoader` or `FileLoader` this function
-    /// can return any enum variant of `MoostacheError`.
+    /// If using [`HashMapLoader`] or [`FileLoader`] this function
+    /// can return any enum variant of [`MoostacheError`].
     #[inline]
     fn render_serializable_to_string<S: Serialize>(
         &self,
@@ -883,14 +884,12 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
     }
 }
 
-/// # `LoaderConfig`
+/// Useful struct for creating [`HashMapLoader`]s or
+/// [`FileLoader`]s.
 /// 
-/// Useful struct for creating `HashMapLoader`s or
-/// `FileLoader`s.
+/// ### Examples
 /// 
-/// # Examples
-/// 
-/// Creating a `HashMapLoader`:
+/// Creating a [`HashMapLoader`]:
 /// 
 /// ```rust
 /// use moostache::{LoaderConfig, HashMapLoader};
@@ -898,7 +897,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
 /// let loader = HashMapLoader::try_from(LoaderConfig::default()).unwrap();
 /// ```
 /// 
-/// Creating a `FileLoader`:
+/// Creating a [`FileLoader`]:
 /// 
 /// ```rust
 /// use moostache::{LoaderConfig, FileLoader};
@@ -906,7 +905,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
 /// let loader = FileLoader::try_from(LoaderConfig::default()).unwrap();
 /// ```
 /// 
-/// `LoaderConfig` default values:
+/// [`LoaderConfig`] default values:
 /// 
 /// ```rust
 /// use moostache::LoaderConfig;
@@ -915,7 +914,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
 ///     LoaderConfig::default(),
 ///     LoaderConfig {
 ///         templates_directory: "./templates/",
-///         templates_extension: "html",
+///         templates_extension: ".html",
 ///         cache_size: 200,
 ///     },
 /// );
@@ -999,24 +998,22 @@ impl TryFrom<LoaderConfig<'_>> for HashMapLoader {
     }
 }
 
-/// # `HashMapLoader`
-/// 
 /// Stores all templates in memory.
 /// 
-/// # Examples
+/// ### Examples
 /// 
-/// Creating a `HashMapLoader` from a hashmap:
+/// Creating a [`HashMapLoader`] from a hashmap:
 /// 
 /// ```rust
 /// use moostache::HashMapLoader;
 /// use maplit::hashmap;
-///
+/// 
 /// let loader = HashMapLoader::try_from(hashmap! {
 ///    "greet" => "hello {{name}}!",
 /// }).unwrap();
 /// ```
 /// 
-/// Creating a `HashMapLoader` from a `LoaderConfig`:
+/// Creating a [`HashMapLoader`] from a [`LoaderConfig`]:
 /// 
 /// ```rust
 /// use moostache::{LoaderConfig, HashMapLoader};
@@ -1043,14 +1040,12 @@ impl<K: Borrow<str> + Eq + Hash, H: BuildHasher + Default> TemplateLoader<K> for
     }
 }
 
-/// # `FileLoader`
-/// 
 /// Lazily loads templates on-demand during render. Caches
 /// some compiled templates in memory.
 /// 
-/// # Examples
+/// ### Examples
 /// 
-/// Creating a `FileLoader` from a `LoaderConfig`:
+/// Creating a [`FileLoader`] from a [`LoaderConfig`]:
 /// 
 /// ```rust
 /// use moostache::{LoaderConfig, FileLoader};
@@ -1473,12 +1468,10 @@ fn _render<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, W: Write>(
 // ERRORS //
 ////////////
 
-/// # `MoostacheError`
-/// 
 /// Enum of all possible errors that
-/// `moostache` can produce.
+/// moostache can produce.
 /// 
-/// The `String` in almost every enum variant
+/// The [`String`] in almost every enum variant
 /// is the name of the template which produced
 /// the error.
 #[derive(Debug, Clone, PartialEq)]
@@ -1517,19 +1510,19 @@ pub enum MoostacheError {
     /// Loader tried to load a template but couldn't find it by
     /// its name.
     LoaderErrorTemplateNotFound(String),
-    /// `FileLoader` tried to load a template but its filepath wasn't
+    /// [`FileLoader`] tried to load a template but its filepath wasn't
     /// valid utf-8.
     LoaderErrorNonUtf8FilePath(PathBuf),
-    /// Cache size parameter in `LoaderConfig` must be greater than zero.
+    /// Cache size parameter in [`LoaderConfig`] must be greater than zero.
     ConfigErrorNonPositiveCacheSize,
-    /// Templates directory passed to `LoaderConfig` is not a directory.
+    /// Templates directory passed to [`LoaderConfig`] is not a directory.
     ConfigErrorInvalidTemplatesDirectory(PathBuf),
-    /// Tried creating a `HashMapLoader` from a `LoaderConfig` but there were
+    /// Tried creating a [`HashMapLoader`] from a [`LoaderConfig`] but there were
     /// more templates in the directory than the maximum allowed by cache
     /// size so not all templates could be loaded into memory. To fix this
-    /// increase your cache size or switch to `FileLoader`.
+    /// increase your cache size or switch to [`FileLoader`].
     ConfigErrorTooManyTemplates,
-    /// moostache uses `serde_json` internally, and if `serde_json` fails
+    /// moostache uses [`serde_json`] internally, and if [`serde_json`] fails
     /// to serialize anything for any reason this error will be returned.
     SerializationError,
 }

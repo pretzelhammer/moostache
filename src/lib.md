@@ -44,11 +44,9 @@ Then you can render any template by name, passing it a type which impls [`serde:
 ```rust
 # use moostache::HashMapLoader;
 # use maplit::hashmap;
-
 # let loader = HashMapLoader::try_from(hashmap! {
 #    "greet" => "hello {{name}}!",
 # }).unwrap();
-
 use moostache::TemplateLoader;
 use serde_derive::Serialize;
 
@@ -70,11 +68,9 @@ Or by passing it a [`serde_json::Value`]:
 ```rust
 # use moostache::HashMapLoader;
 # use maplit::hashmap;
-
 # let loader = HashMapLoader::try_from(hashmap! {
 #    "greet" => "hello {{name}}!",
 # }).unwrap();
-
 use moostache::TemplateLoader;
 use serde_json::json;
 

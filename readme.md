@@ -49,7 +49,7 @@ let loader = HashMapLoader::try_from(LoaderConfig {
 })?;
 ```
 
-Then you can render any template by name, passing it a type which impls `Serialize`:
+Then you can render any template by name, passing it a type which impls `serde::Serialize`:
 
 ```rust
 use moostache::TemplateLoader;
@@ -101,7 +101,7 @@ let loader = FileLoader::try_from(LoaderConfig {
 })?;
 ```
 
-Then, as explained above, you can render any template by name, passing it a type which impls `Serialize` or a `serde_json::Value`.
+Then, as explained above, you can render any template by name, passing it a type which impls `serde::Serialize` or a `serde_json::Value`.
 
 See more examples in the [examples](./examples/) directory. See the full API documentation on [docs.rs](https://docs.rs/moostache).
 
@@ -115,7 +115,7 @@ Regardless, both impl the `TemplateLoader` trait so they each support the `inser
 
 ## Alternatives
 
-If moostache doesn't meet your needs you can checkout [rust-mustache](https://github.com/nickel-org/rust-mustache) or [ramhorns](https://github.com/maciejhirsz/ramhorns). If you're not married to Mustache you can also look into [tera](https://github.com/Keats/tera) or [askama](https://github.com/rinja-rs/askama).
+If moostache doesn't meet your needs you can checkout [rust-mustache](https://github.com/nickel-org/rust-mustache) or [ramhorns](https://github.com/maciejhirsz/ramhorns). If you're not married to Mustache you can also look into [rinja](https://github.com/rinja-rs/rinja), [tera](https://github.com/Keats/tera), or [askama](https://github.com/rinja-rs/askama).
 
 ## License
 
