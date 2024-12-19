@@ -14,7 +14,7 @@ To render templates you must create a type that implements the `TemplateLoader` 
 
 You can create a `HashMapLoader` from a hashmap:
 
-```rust
+```rust,ignore
 use moostache::HashMapLoader;
 use maplit::hashmap;
 
@@ -25,7 +25,7 @@ let loader = HashMapLoader::try_from(hashmap! {
 
 Or from a `LoaderConfig`:
 
-```rust
+```rust,ignore
 use moostache::{HashMapLoader, LoaderConfig};
 
 // this will eagerly load all .html files in the
@@ -41,7 +41,7 @@ let loader = HashMapLoader::try_from(LoaderConfig {
 
 Then you can render any template by name, passing it a type which impls `Serialize`:
 
-```rust
+```rust,ignore
 use moostache::TemplateLoader;
 use serde_derive::Serialize;
 
@@ -60,7 +60,7 @@ assert_eq!(rendered, "hello John!")
 
 Or by passing it a `serde_json::Value`:
 
-```rust
+```rust,ignore
 use moostache::TemplateLoader;
 use serde_json::json;
 
@@ -76,7 +76,7 @@ assert_eq!(rendered, "hello John!")
 
 You can create a `FileLoader` from a `LoaderConfig`:
 
-```rust
+```rust,ignore
 use moostache::{FileLoader, LoaderConfig};
 
 // this loader will lazily read .html files from

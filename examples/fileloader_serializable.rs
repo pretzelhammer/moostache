@@ -26,7 +26,7 @@ struct Post<'a> {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let loader = FileLoader::try_from(LoaderConfig {
-        templates_directory: "./templates/examples/",
+        templates_directory: "./examples/templates/",
         templates_extension: ".html",
         cache_size: 200,
     })?;
