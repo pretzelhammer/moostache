@@ -1,8 +1,16 @@
 use maplit::hashmap;
-
 use super::*;
 
-fn test_temp1(source: &'static str, frags: Vec<Fragment<'static>>) -> Template {
+// run tests with
+// cargo test
+
+// run miri (fully isolated) with
+// cargo +nightly miri test miri_iso
+
+// run miri (partially isolated) with
+// MIRIFLAGS=-Zmiri-disable-isolation cargo +nightly miri test miri
+
+fn temp_no_skips(source: String, frags: Vec<Fragment<'static>>) -> Template {
     Template {
         fragments: frags,
         skips: Vec::new(),
@@ -10,7 +18,7 @@ fn test_temp1(source: &'static str, frags: Vec<Fragment<'static>>) -> Template {
     }
 }
 
-fn test_temp2(source: &'static str, frags: Vec<Fragment<'static>>, skips: Vec<SectionSkip>) -> Template {
+fn temp(source: String, frags: Vec<Fragment<'static>>, skips: Vec<SectionSkip>) -> Template {
     Template {
         fragments: frags,
         skips,
@@ -23,152 +31,216 @@ fn test_temp2(source: &'static str, frags: Vec<Fragment<'static>>, skips: Vec<Se
 ////////////////////////////////////
 
 #[test]
-fn test_parse_empty() {
-    let source = "";
+fn miri_iso_parse_empty() {
+    let source = "".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorNoContent("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_escaped_variable() {
-    let source = "{{ dfg%jgf }}";
+fn miri_iso_parse_invalid_escaped_variable() {
+    let source = "{{ dfg%jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidEscapedVariableTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_escaped_variable() {
-    let source = "{{ dfg.jgf }";
+fn miri_iso_parse_invalid_escaped_variable_utf8() {
+    let source = "{{ dfg🦀jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidEscapedVariableTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_unescaped_variable() {
-    let source = "{{{ dfg%jgf }}}";
+fn miri_iso_parse_unclosed_escaped_variable() {
+    let source = "{{ dfg.jgf }".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidEscapedVariableTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_invalid_unescaped_variable() {
+    let source = "{{{ dfg%jgf }}}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidUnescapedVariableTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_unescaped_variable() {
-    let source = "{{{ dfg.jgf }}";
+fn miri_iso_parse_invalid_unescaped_variable_utf8() {
+    let source = "{{{ dfg🦀jgf }}}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidUnescapedVariableTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_comment() {
-    let source = "{{! comment }";
+fn miri_iso_parse_unclosed_unescaped_variable() {
+    let source = "{{{ dfg.jgf }}".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidUnescapedVariableTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_unclosed_comment() {
+    let source = "{{! comment }".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidCommentTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_section_start() {
-    let source = "{{# dfg%jgf }}";
+fn miri_iso_parse_unclosed_comment_utf8() {
+    let source = "{{! 🦀 }".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidCommentTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_invalid_section_start() {
+    let source = "{{# dfg%jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidSectionStartTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_section_start() {
-    let source = "{{# dfg.jgf }";
+fn miri_iso_parse_invalid_section_start_utf8() {
+    let source = "{{# dfg🦀jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidSectionStartTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_section_missing_end() {
-    let source = "{{# dfg.jgf }}";
+fn miri_iso_parse_unclosed_section_start() {
+    let source = "{{# dfg.jgf }".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidSectionStartTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_unclosed_section_missing_end() {
+    let source = "{{# dfg.jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorUnclosedSectionTags("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_section_mismatched_end() {
-    let source = "{{# dfg.jgf }} lol {{/ not.same }}";
+fn miri_iso_parse_unclosed_section_mismatched_end() {
+    let source = "{{# dfg.jgf }} lol {{/ not.same }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorMismatchedSectionEndTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_inverted_section_start() {
-    let source = "{{^ dfg%jgf }}";
+fn miri_iso_parse_unclosed_section_mismatched_end_utf8() {
+    let source = "{{# dfg.jgf }} 🦀🦀 {{/ not.same }}".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorMismatchedSectionEndTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_invalid_inverted_section_start() {
+    let source = "{{^ dfg%jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidInvertedSectionStartTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_inverted_section_start() {
-    let source = "{{^ dfg.jgf }";
+fn miri_iso_parse_invalid_inverted_section_start_utf8() {
+    let source = "{{^ dfg🦀jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidInvertedSectionStartTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_inverted_section_missing_end() {
-    let source = "{{^ dfg.jgf }}";
+fn miri_iso_parse_unclosed_inverted_section_start() {
+    let source = "{{^ dfg.jgf }".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidInvertedSectionStartTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_unclosed_inverted_section_missing_end() {
+    let source = "{{^ dfg.jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorUnclosedSectionTags("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_inverted_section_mismatched_end() {
-    let source = "{{^ dfg.jgf }} lol {{/ not.same }}";
+fn miri_iso_parse_unclosed_inverted_section_mismatched_end() {
+    let source = "{{^ dfg.jgf }} lol {{/ not.same }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorMismatchedSectionEndTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_section_end() {
-    let source = "{{/ dfg%jgf }}";
-    let err = Template::parse(source).unwrap_err();
-    let expected = MoostacheError::ParseErrorInvalidSectionEndTag("".to_owned());
-    assert_eq!(err, expected);
-}
-
-#[test]
-fn test_parse_unclosed_section_end() {
-    let source = "{{/ dfg.jgf }";
-    let err = Template::parse(source).unwrap_err();
-    let expected = MoostacheError::ParseErrorInvalidSectionEndTag("".to_owned());
-    assert_eq!(err, expected);
-}
-
-#[test]
-fn test_parse_section_end_without_start() {
-    let source = "{{/ dfg.jgf }}";
+fn miri_iso_parse_unclosed_inverted_section_mismatched_end_utf8() {
+    let source = "{{^ dfg.jgf }} 🦀🦀 {{/ not.same }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorMismatchedSectionEndTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_invalid_partial() {
-    let source = "{{> dfg\"jgf }}";
+fn miri_iso_parse_invalid_section_end() {
+    let source = "{{/ dfg%jgf }}".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidSectionEndTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_unclosed_section_end() {
+    let source = "{{/ dfg.jgf }".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidSectionEndTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_section_end_without_start() {
+    let source = "{{/ dfg.jgf }}".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorMismatchedSectionEndTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_invalid_partial() {
+    let source = "{{> dfg\"jgf }}".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidPartialTag("".to_owned());
     assert_eq!(err, expected);
 }
 
 #[test]
-fn test_parse_unclosed_partial() {
-    let source = "{{> dfg/jgf }";
+fn miri_iso_parse_invalid_partial_utf8() {
+    let source = "{{> dfg🦀jgf }}".to_owned();
+    let err = Template::parse(source).unwrap_err();
+    let expected = MoostacheError::ParseErrorInvalidPartialTag("".to_owned());
+    assert_eq!(err, expected);
+}
+
+#[test]
+fn miri_iso_parse_unclosed_partial() {
+    let source = "{{> dfg/jgf }".to_owned();
     let err = Template::parse(source).unwrap_err();
     let expected = MoostacheError::ParseErrorInvalidPartialTag("".to_owned());
     assert_eq!(err, expected);
@@ -179,69 +251,94 @@ fn test_parse_unclosed_partial() {
 //////////////////////////////////
 
 #[test]
-fn test_parse_literal() {
+fn miri_iso_parse_literal() {
     let source = "hello world";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
-    let expected_template = test_temp1(
-        source, 
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::Literal(source)]
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_escaped_var() {
+fn miri_iso_parse_literal_static() {
+    let source = "hello world";
+    let template = Template::parse(source)
+        .expect("template parsed successfully");
+    let expected_template = Template {
+        source: source.into(),
+        skips: Vec::new(),
+        fragments: vec![Fragment::Literal(source)],
+    };
+    assert_eq!(template, expected_template);
+}
+
+#[test]
+fn miri_iso_parse_literal_utf8() {
+    let source = "hello world 🦀";
+    let template = Template::parse(source.to_owned())
+        .expect("template parsed successfully");
+    let expected_template = temp_no_skips(
+        source.to_owned(),
+        vec![Fragment::Literal(source)]
+    );
+    assert_eq!(template, expected_template);
+}
+
+#[test]
+fn miri_iso_parse_escaped_var() {
     let source = "{{name}}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source, 
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::EscapedVariable("name")]
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_escaped_var_padded() {
+fn miri_iso_parse_escaped_var_padded() {
     let source = "{{  name  }}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::EscapedVariable("name")]
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_unescaped_var() {
+fn miri_iso_parse_unescaped_var() {
     let source = "{{{name}}}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::UnescapedVariable("name")]
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_unescaped_var_padded() {
+fn miri_iso_parse_unescaped_var_padded() {
     let source = "{{{  name  }}}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::UnescapedVariable("name")]
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_section() {
+fn miri_iso_parse_section() {
     let source = "{{# whatever }} cheese {{/ whatever}}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_frags = vec![
         Fragment::Section("whatever"),
@@ -251,8 +348,8 @@ fn test_parse_section() {
         nested_sections: 0,
         nested_fragments: 1,
     }];
-    let expected_template = test_temp2(
-        source,
+    let expected_template = temp(
+        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -260,48 +357,81 @@ fn test_parse_section() {
 }
 
 #[test]
-fn test_parse_partial() {
+fn miri_iso_parse_section_utf8() {
+    let source = "{{# whatever }} 🦀🦀 {{/ whatever}}";
+    let template = Template::parse(source.to_owned())
+        .expect("template parsed successfully");
+    let expected_frags = vec![
+        Fragment::Section("whatever"),
+        Fragment::Literal(" 🦀🦀 "),
+    ];
+    let expected_skips = vec![SectionSkip {
+        nested_sections: 0,
+        nested_fragments: 1,
+    }];
+    let expected_template = temp(
+        source.to_owned(),
+        expected_frags,
+        expected_skips,
+    );
+    assert_eq!(template, expected_template);
+}
+
+#[test]
+fn miri_iso_parse_partial() {
     let source = "{{>name}}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::Partial("name")],
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_partial_padded() {
+fn miri_iso_parse_partial_padded() {
     let source = "{{>  name  }}";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::Partial("name")],
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_partial_nested_padded() {
-    let source = "{{>  name/in/nested/dir  }}";
-    let template = Template::parse(source)
+fn miri_iso_parse_partial_nested() {
+    let source = "{{>name/in/nested/dir}}";
+    let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![Fragment::Partial("name/in/nested/dir".into())],
     );
     assert_eq!(template, expected_template);
 }
 
 #[test]
-fn test_parse_v1_features() {
+fn miri_iso_parse_partial_nested_padded() {
+    let source = "{{>  name/in/nested/dir  }}";
+    let template = Template::parse(source.to_owned())
+        .expect("Fragment parsed successfully");
+    let expected_template = temp_no_skips(
+        source.to_owned(),
+        vec![Fragment::Partial("name/in/nested/dir".into())],
+    );
+    assert_eq!(template, expected_template);
+}
+
+#[test]
+fn miri_iso_parse_v1_features() {
     let source = "prefix {{ escaped }}!";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![
             Fragment::Literal("prefix ".into()),
             Fragment::EscapedVariable("escaped".into()),
@@ -312,12 +442,12 @@ fn test_parse_v1_features() {
 }
 
 #[test]
-fn test_parse_v2_features() {
+fn miri_iso_parse_v2_features() {
     let source = "{{! comment }}prefix {{ escaped }} {{{ unescaped }}}!";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
-    let expected_template = test_temp1(
-        source,
+    let expected_template = temp_no_skips(
+        source.to_owned(),
         vec![
             Fragment::Literal("prefix ".into()),
             Fragment::EscapedVariable("escaped".into()),
@@ -330,9 +460,9 @@ fn test_parse_v2_features() {
 }
 
 #[test]
-fn test_parse_v3_features() {
+fn miri_iso_parse_v3_features() {
     let source = "{{! comment }}prefix {{ escaped }} {{{ unescaped }}} {{# section }} {{ cheese }} {{/ section }}!";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_frags = vec![
         Fragment::Literal("prefix "),
@@ -350,8 +480,8 @@ fn test_parse_v3_features() {
         nested_fragments: 3,
         nested_sections: 0,
     }];
-    let expected_template = test_temp2(
-        source,
+    let expected_template = temp(
+        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -359,9 +489,9 @@ fn test_parse_v3_features() {
 }
 
 #[test]
-fn test_parse_v4_features() {
+fn miri_iso_parse_v4_features() {
     let source = "{{> nested/partial }}{{! comment }}prefix {{ escaped }} {{{ unescaped }}} {{# section }} {{ cheese }} {{/ section }}{{^section}}no cheese damn{{/section}}!";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_frags = vec![
         Fragment::Partial("nested/partial"),
@@ -388,8 +518,8 @@ fn test_parse_v4_features() {
             nested_sections: 0,
         },
     ];
-    let expected_template = test_temp2(
-        source,
+    let expected_template = temp(
+        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -397,9 +527,47 @@ fn test_parse_v4_features() {
 }
 
 #[test]
-fn test_parse_heavy_section_nesting() {
+fn miri_iso_parse_v4_features_utf8() {
+    let source = "{{> nested/partial }}{{! comment }}prefix {{ escaped }} {{{ unescaped }}} {{# section }} {{ cheese }} {{/ section }}{{^section}}no 🦀🦀 damn{{/section}}!";
+    let template = Template::parse(source.to_owned())
+        .expect("template parsed successfully");
+    let expected_frags = vec![
+        Fragment::Partial("nested/partial"),
+        Fragment::Literal("prefix "),
+        Fragment::EscapedVariable("escaped"),
+        Fragment::Literal(" "),
+        Fragment::UnescapedVariable("unescaped"),
+        Fragment::Literal(" "),
+        Fragment::Section("section"),
+        Fragment::Literal(" "),
+        Fragment::EscapedVariable("cheese"),
+        Fragment::Literal(" "),
+        Fragment::InvertedSection("section"),
+        Fragment::Literal("no 🦀🦀 damn"),
+        Fragment::Literal("!"),
+    ];
+    let expected_skips = vec![
+        SectionSkip {
+            nested_fragments: 3,
+            nested_sections: 0,
+        },
+        SectionSkip {
+            nested_fragments: 1,
+            nested_sections: 0,
+        },
+    ];
+    let expected_template = temp(
+        source.to_owned(),
+        expected_frags,
+        expected_skips,
+    );
+    assert_eq!(template, expected_template);
+}
+
+#[test]
+fn miri_iso_parse_heavy_section_nesting() {
     let source = "prefix{{#s1}}infix1{{#s1a}}infix2{{#s1aa}}content-1aa{{/s1aa}}{{^s1aa}}nothing-1aa{{/s1aa}}{{#s1ab}}content-1ab{{/s1ab}}{{^s1ab}}nothing-1ab{{/s1ab}}{{/s1a}}{{^s1a}}nothing-1a{{/s1a}}infix3{{#s1b}}content-1b{{/s1b}}{{^s1b}}nothing-1b{{/s1b}}infix4{{/s1}}suffix";
-    let template = Template::parse(source)
+    let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_frags = vec![
         Fragment::Literal("prefix"),
@@ -463,8 +631,8 @@ fn test_parse_heavy_section_nesting() {
             nested_fragments: 1,
         },
     ];
-    let expected_template = test_temp2(
-        source,
+    let expected_template = temp(
+        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -476,57 +644,62 @@ fn test_parse_heavy_section_nesting() {
 /////////////////////////////
 
 #[test]
-fn test_truthy_value_null() {
+fn miri_iso_truthy_value_null() {
     assert_eq!(is_truthy(&json!(null)), false);
 }
 
 #[test]
-fn test_truthy_value_false() {
+fn miri_iso_truthy_value_false() {
     assert_eq!(is_truthy(&json!(false)), false);
 }
 
 #[test]
-fn test_truthy_value_true() {
+fn miri_iso_truthy_value_true() {
     assert_eq!(is_truthy(&json!(true)), true);
 }
 
 #[test]
-fn test_truthy_value_zero() {
+fn miri_iso_truthy_value_zero() {
     assert_eq!(is_truthy(&json!(0)), false);
 }
 
 #[test]
-fn test_truthy_value_nonzero() {
+fn miri_iso_truthy_value_nonzero() {
     assert_eq!(is_truthy(&json!(1)), true);
 }
 
 #[test]
-fn test_truthy_value_empty_string() {
+fn miri_iso_truthy_value_empty_string() {
     assert_eq!(is_truthy(&json!("")), false);
 }
 
 #[test]
-fn test_truthy_value_nonempty_string() {
+fn miri_iso_truthy_value_nonempty_string() {
     assert_eq!(is_truthy(&json!("hello")), true);
 }
 
 #[test]
-fn test_truthy_value_empty_array() {
+fn miri_iso_truthy_value_nonempty_string_utf8() {
+    assert_eq!(is_truthy(&json!("🦀")), true);
+}
+
+#[test]
+fn miri_iso_truthy_value_empty_array() {
     assert_eq!(is_truthy(&json!([])), false);
 }
 
 #[test]
-fn test_truthy_value_nonempty_array() {
+fn miri_iso_truthy_value_nonempty_array() {
     assert_eq!(is_truthy(&json!([1])), true);
 }
 
 #[test]
-fn test_truthy_value_empty_object() {
+fn miri_iso_truthy_value_empty_object() {
     assert_eq!(is_truthy(&json!({})), false);
 }
 
 #[test]
-fn test_truthy_value_nonempty_object() {
+fn miri_iso_truthy_value_nonempty_object() {
     assert_eq!(is_truthy(&json!({"field": 1})), true);
 }
 
@@ -535,7 +708,7 @@ fn test_truthy_value_nonempty_object() {
 ////////////////////////////////
 
 #[test]
-fn test_resolve_value_dot() {
+fn miri_iso_resolve_value_dot() {
     assert_eq!(
         resolve_value(
             ".",
@@ -546,7 +719,18 @@ fn test_resolve_value_dot() {
 }
 
 #[test]
-fn test_resolve_value_number() {
+fn miri_iso_resolve_value_dot_utf8() {
+    assert_eq!(
+        resolve_value(
+            ".",
+            &[&json!("🦀")],
+        ),
+        &json!("🦀"),
+    );
+}
+
+#[test]
+fn miri_iso_resolve_value_number() {
     assert_eq!(
         resolve_value(
             "0",
@@ -557,7 +741,18 @@ fn test_resolve_value_number() {
 }
 
 #[test]
-fn test_resolve_value_string() {
+fn miri_iso_resolve_value_number_utf8() {
+    assert_eq!(
+        resolve_value(
+            "0",
+            &[&json!(["🦀"])],
+        ),
+        &json!("🦀"),
+    );
+}
+
+#[test]
+fn miri_iso_resolve_value_string() {
     assert_eq!(
         resolve_value(
             "greeting",
@@ -568,7 +763,18 @@ fn test_resolve_value_string() {
 }
 
 #[test]
-fn test_resolve_value_nested_numbers() {
+fn miri_iso_resolve_value_string_utf8() {
+    assert_eq!(
+        resolve_value(
+            "greeting",
+            &[&json!({"greeting": "🦀"})],
+        ),
+        &json!("🦀"),
+    );
+}
+
+#[test]
+fn miri_iso_resolve_value_nested_numbers() {
     assert_eq!(
         resolve_value(
             "1.1",
@@ -579,7 +785,7 @@ fn test_resolve_value_nested_numbers() {
 }
 
 #[test]
-fn test_resolve_value_nested_strings() {
+fn miri_iso_resolve_value_nested_strings() {
     assert_eq!(
         resolve_value(
             "a.b",
@@ -590,7 +796,7 @@ fn test_resolve_value_nested_strings() {
 }
 
 #[test]
-fn test_resolve_value_nested_mixed() {
+fn miri_iso_resolve_value_nested_mixed() {
     assert_eq!(
         resolve_value(
             "1.a.0.b",
@@ -601,7 +807,7 @@ fn test_resolve_value_nested_mixed() {
 }
 
 #[test]
-fn test_resolve_value_parent_scope_number() {
+fn miri_iso_resolve_value_parent_scope_number() {
     assert_eq!(
         resolve_value(
             "0",
@@ -621,7 +827,7 @@ fn test_resolve_value_parent_scope_number() {
 }
 
 #[test]
-fn test_resolve_value_parent_scope_string() {
+fn miri_iso_resolve_value_parent_scope_string() {
     assert_eq!(
         resolve_value(
             "a",
@@ -632,7 +838,7 @@ fn test_resolve_value_parent_scope_string() {
 }
 
 #[test]
-fn test_write_value_null() {
+fn miri_iso_write_value_null() {
     let mut writer = Vec::new();
     let _ = write_value(&json!(null), &mut writer);
     assert!(writer.is_empty());
@@ -643,7 +849,7 @@ fn test_write_value_null() {
 ///////////////////////////////////////////////
 
 #[test]
-fn test_render_section_object_parent_scope() {
+fn miri_iso_render_section_object_parent_scope() {
     let source = "{{ blogTitle }}, posts: {{# posts }}{{ postTitle }} by {{ author }}, {{/ posts}}";
     let data = json!({
         "blogTitle": "blog title",
@@ -657,225 +863,295 @@ fn test_render_section_object_parent_scope() {
             }
         ]
     });
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "blog title, posts: post 1 by chris, post 2 by chris, ";
     assert_eq!(rendered, expected);
 }
 
+#[test]
+fn miri_iso_render_section_object_parent_scope_utf8() {
+    let source = "{{ blogTitle }}, posts: {{# posts }}{{ postTitle }} by {{ author }}, {{/ posts}}";
+    let data = json!({
+        "blogTitle": "🦀 title",
+        "author": "🦀",
+        "posts": [
+            {
+                "postTitle": "🦀 1"
+            },
+            {
+                "postTitle": "🦀 2"
+            }
+        ]
+    });
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "🦀 title, posts: 🦀 1 by 🦀, 🦀 2 by 🦀, ";
+    assert_eq!(rendered, expected);
+}
 
 #[test]
-fn test_render_section_array_multi_escaped() {
+fn miri_iso_render_section_array_multi_escaped() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!(["&", "<", ">", "\"", "'"]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "&amp;&lt;&gt;&quot;&#x27;";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_array_multi_unescaped() {
+fn miri_iso_render_section_array_multi_unescaped() {
     let source = "{{# . }}{{{ . }}}{{/ . }}";
     let data = json!(["&", "<", ">", "\"", "'"]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "&<>\"'";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_object() {
+fn miri_iso_render_section_array_multi_escaped_mixed() {
+    let source = "{{ . }}";
+    let data = json!("&g<>\"g'🦀g&<g>🦀\"'g");
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "&amp;g&lt;&gt;&quot;g&#x27;🦀g&amp;&lt;g&gt;🦀&quot;&#x27;g";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_section_array_multi_unescaped_mixed() {
+    let source = "{{{ . }}}";
+    let data = json!("&g<>\"g'🦀g&<g>🦀\"'g");
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "&g<>\"g'🦀g&<g>🦀\"'g";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_section_object() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!({ "some": "field" });
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "{&quot;some&quot;:&quot;field&quot;}";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_array_single() {
+fn miri_iso_render_section_object_utf8() {
+    let source = "{{# . }}{{ . }}{{/ . }}";
+    let data = json!({ "some": "🦀" });
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "{&quot;some&quot;:&quot;🦀&quot;}";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_section_array_single() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!([1]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "1";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_string_escaped() {
+fn miri_iso_render_section_string_escaped() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!("&<>\"'");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "&amp;&lt;&gt;&quot;&#x27;";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_string_unescaped() {
+fn miri_iso_render_section_string_escaped_utf8() {
+    let source = "{{# . }}{{ . }}{{/ . }}";
+    let data = json!("&<>\"'🦀");
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "&amp;&lt;&gt;&quot;&#x27;🦀";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_section_string_unescaped() {
     let source = "{{# . }}{{{ . }}}{{/ . }}";
     let data = json!("&<>\"'");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "&<>\"'";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_float() {
+fn miri_iso_render_section_string_unescaped_utf8() {
+    let source = "{{# . }}{{{ . }}}{{/ . }}";
+    let data = json!("&<>\"'🦀");
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "&<>\"'🦀";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_section_float() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!(0.1);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "0.1";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_integer() {
+fn miri_iso_render_section_integer() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!(1);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "1";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_true() {
+fn miri_iso_render_section_true() {
     let source = "{{# . }}{{ . }}{{/ . }}";
     let data = json!(true);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "true";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_empty_object() {
+fn miri_iso_render_inverted_section_empty_object() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!({});
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_empty_array() {
+fn miri_iso_render_inverted_section_empty_array() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!([]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_empty_string() {
+fn miri_iso_render_inverted_section_empty_string() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!("");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_zero() {
+fn miri_iso_render_inverted_section_zero() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!(0);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_false() {
+fn miri_iso_render_inverted_section_false() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!(false);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_inverted_section_null() {
+fn miri_iso_render_inverted_section_null() {
     let source = "{{^ . }}lol{{/ . }}";
     let data = json!(null);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "lol";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_empty_object() {
+fn miri_iso_render_section_empty_object() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!({});
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_empty_array() {
+fn miri_iso_render_section_empty_array() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!([]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_empty_string() {
+fn miri_iso_render_section_empty_string() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!("");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_zero() {
+fn miri_iso_render_section_zero() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!(0);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_false() {
+fn miri_iso_render_section_false() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!(false);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_section_null() {
+fn miri_iso_render_section_null() {
     let source = "{{# . }}lol{{/ . }}";
     let data = json!(null);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_nested_key_string() {
+fn miri_iso_render_escaped_nested_key_string() {
     let source = "hello {{ name.last }}!";
     let data = json!({
         "name": {
@@ -883,24 +1159,24 @@ fn test_render_escaped_nested_key_string() {
             "last": "&<>\"'"
         }
     });
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello &amp;&lt;&gt;&quot;&#x27;!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_nested_index_string() {
+fn miri_iso_render_escaped_nested_index_string() {
     let source = "hello {{ 1.1 }}!";
     let data = json!(["john", ["moon", "&<>\"'"], "chris"]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello &amp;&lt;&gt;&quot;&#x27;!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_nested_key_string() {
+fn miri_iso_render_unescaped_nested_key_string() {
     let source = "hello {{{ name.last }}}!";
     let data = json!({
         "name": {
@@ -908,174 +1184,194 @@ fn test_render_unescaped_nested_key_string() {
             "last": "world"
         }
     });
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_nested_index_string() {
+fn miri_iso_render_unescaped_nested_index_string() {
     let source = "hello {{{ 1.1 }}}!";
     let data = json!(["john", ["moon", "world"], "chris"]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_key_string() {
+fn miri_iso_render_unescaped_key_string() {
     let source = "hello {{{ name }}}!";
     let data = json!({"name": "world"});
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_index_string() {
+fn miri_iso_render_unescaped_index_string() {
     let source = "hello {{{ 1 }}}!";
     let data = json!(["john", "world", "chris"]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_object() {
+fn miri_iso_render_escaped_dot_object() {
     let source = "hello {{ . }}!";
     let data = json!({"some": "field"});
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello {&quot;some&quot;:&quot;field&quot;}!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_array() {
+fn miri_iso_render_escaped_dot_array() {
     let source = "hello {{ . }}!";
     let data = json!([1, "string", null]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello [1,&quot;string&quot;,null]!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_null() {
+fn miri_iso_render_escaped_dot_null() {
     let source = "hello {{ . }}!";
     let data = json!(null);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello !";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_float() {
+fn miri_iso_render_escaped_dot_float() {
     let source = "hello {{ . }}!";
     let data = json!(123.5);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello 123.5!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_integer() {
+fn miri_iso_render_escaped_dot_integer() {
     let source = "hello {{ . }}!";
     let data = json!(123);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello 123!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_escaped_dot_string() {
+fn miri_iso_render_escaped_dot_string() {
     let source = "hello {{ . }}!";
     let data = json!("&<>\"'");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello &amp;&lt;&gt;&quot;&#x27;!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_object() {
+fn miri_iso_render_unescaped_dot_object() {
     let source = "hello {{{ . }}}!";
     let data = json!({"some": "field"});
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello {\"some\":\"field\"}!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_array() {
+fn miri_iso_render_unescaped_dot_object_utf8() {
+    let source = "hello {{{ . }}}!";
+    let data = json!({"some": "🦀"});
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "hello {\"some\":\"🦀\"}!";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_unescaped_dot_array() {
     let source = "hello {{{ . }}}!";
     let data = json!([1, "string", null]);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello [1,\"string\",null]!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_null() {
+fn miri_iso_render_unescaped_dot_array_utf8() {
+    let source = "hello {{{ . }}}!";
+    let data = json!([1, "🦀", null]);
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_no_partials_to_string(&data).unwrap();
+    let expected = "hello [1,\"🦀\",null]!";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_unescaped_dot_null() {
     let source = "hello {{{ . }}}!";
     let data = json!(null);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello !";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_float() {
+fn miri_iso_render_unescaped_dot_float() {
     let source = "hello {{{ . }}}!";
     let data = json!(123.5);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello 123.5!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_integer() {
+fn miri_iso_render_unescaped_dot_integer() {
     let source = "hello {{{ . }}}!";
     let data = json!(123);
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello 123!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_unescaped_dot_string() {
+fn miri_iso_render_unescaped_dot_string() {
     let source = "hello {{{ . }}}!";
     let data = json!("world");
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_serializable_string() {
+fn miri_iso_render_serializable_string() {
     let source = "hello {{{ . }}}!";
     let data = "world".to_owned();
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_serializable_no_partials_to_string(&data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_serializable_struct() {
+fn miri_iso_render_serializable_struct() {
     let source = "hello {{ name }}!";
     #[derive(serde_derive::Serialize)]
     struct Person {
@@ -1084,9 +1380,25 @@ fn test_render_serializable_struct() {
     let data = Person {
         name: "homer"
     };
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_serializable_no_partials_to_string(&data).unwrap();
     let expected = "hello homer!";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_serializable_struct_utf8() {
+    let source = "hello {{ name }}!";
+    #[derive(serde_derive::Serialize)]
+    struct Person {
+        name: &'static str,
+    }
+    let data = Person {
+        name: "🦀"
+    };
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_serializable_no_partials_to_string(&data).unwrap();
+    let expected = "hello 🦀!";
     assert_eq!(rendered, expected);
 }
 
@@ -1095,46 +1407,59 @@ fn test_render_serializable_struct() {
 ////////////////////////////////////////////
 
 #[test]
-fn test_render_partial_hashmap() {
+fn miri_iso_render_partial_hashmap() {
     let source = "{{>partial}}!";
     let data = json!(null);
     let mut loader = HashMapLoader::try_from(hashmap! {
-        "partial" => "hello world",
+        "partial" => "hello world".to_owned(),
     }).unwrap();
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_to_string(&mut loader, &data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_partial_padded_hashmap() {
+fn miri_iso_render_partial_hashmap_utf8() {
+    let source = "{{>partial}}!";
+    let data = json!(null);
+    let mut loader = HashMapLoader::try_from(hashmap! {
+        "partial" => "hello 🦀".to_owned(),
+    }).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_to_string(&mut loader, &data).unwrap();
+    let expected = "hello 🦀!";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_iso_render_partial_padded_hashmap() {
     let source = "{{>  partial  }}!";
     let data = json!(null);
     let mut loader = HashMapLoader::try_from(hashmap! {
-        "partial" => "hello world",
+        "partial" => "hello world".to_owned(),
     }).unwrap();
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_to_string(&mut loader, &data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_partial_hashmap_from_config() {
+fn miri_render_partial_hashmap_from_config() {
     let source = "{{>greet}}!";
     let data = json!({"name": "world"});
     let loader = HashMapLoader::try_from(
         LoaderConfig::default()
     ).unwrap();
-    let template = Template::parse(source).unwrap();
-    let rendered = dbg!(template.render_to_string(&loader, &data)).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_to_string(&loader, &data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_partial_hashmap_from_config_too_many_templates() {
+fn miri_render_partial_hashmap_from_config_too_many_templates() {
     let err = HashMapLoader::try_from(LoaderConfig {
         cache_size: 1,
         ..LoaderConfig::default()
@@ -1144,20 +1469,33 @@ fn test_render_partial_hashmap_from_config_too_many_templates() {
 }
 
 #[test]
-fn test_render_partial_file() {
+fn miri_render_partial_file() {
     let source = "{{>greet}}!";
     let data = json!({"name": "world"});
     let loader = FileLoader::try_from(
         LoaderConfig::default()
     ).unwrap();
-    let template = Template::parse(source).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
     let rendered = template.render_to_string(&loader, &data).unwrap();
     let expected = "hello world!";
     assert_eq!(rendered, expected);
 }
 
 #[test]
-fn test_render_partials_exceed_cache() {
+fn miri_render_partial_file_utf8() {
+    let source = "{{>greet}}!";
+    let data = json!({"name": "🦀"});
+    let loader = FileLoader::try_from(
+        LoaderConfig::default()
+    ).unwrap();
+    let template = Template::parse(source.to_owned()).unwrap();
+    let rendered = template.render_to_string(&loader, &data).unwrap();
+    let expected = "hello 🦀!";
+    assert_eq!(rendered, expected);
+}
+
+#[test]
+fn miri_render_partials_exceed_cache() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "tpl",
         cache_size: 1, // cache size of only 1
@@ -1177,7 +1515,7 @@ fn test_render_partials_exceed_cache() {
 ////////////////////////////////////////////////////////
 
 #[test]
-fn test_render_partial_invalid_comment() {
+fn miri_render_partial_invalid_comment() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1191,7 +1529,7 @@ fn test_render_partial_invalid_comment() {
 }
 
 #[test]
-fn test_render_partial_invalid_escaped_variable() {
+fn miri_render_partial_invalid_escaped_variable() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1205,7 +1543,7 @@ fn test_render_partial_invalid_escaped_variable() {
 }
 
 #[test]
-fn test_render_partial_invalid_unescaped_variable() {
+fn miri_render_partial_invalid_unescaped_variable() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1219,7 +1557,7 @@ fn test_render_partial_invalid_unescaped_variable() {
 }
 
 #[test]
-fn test_render_partial_invalid_inverted_section_start() {
+fn miri_render_partial_invalid_inverted_section_start() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1233,7 +1571,7 @@ fn test_render_partial_invalid_inverted_section_start() {
 }
 
 #[test]
-fn test_render_partial_invalid_section_start() {
+fn miri_render_partial_invalid_section_start() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1247,7 +1585,7 @@ fn test_render_partial_invalid_section_start() {
 }
 
 #[test]
-fn test_render_partial_invalid_section_end() {
+fn miri_render_partial_invalid_section_end() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1261,7 +1599,7 @@ fn test_render_partial_invalid_section_end() {
 }
 
 #[test]
-fn test_render_partial_mismatched_section_end() {
+fn miri_render_partial_mismatched_section_end() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1275,7 +1613,7 @@ fn test_render_partial_mismatched_section_end() {
 }
 
 #[test]
-fn test_render_partial_unclosed_sections() {
+fn miri_render_partial_unclosed_sections() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1289,7 +1627,7 @@ fn test_render_partial_unclosed_sections() {
 }
 
 #[test]
-fn test_render_partial_invalid_partial() {
+fn miri_render_partial_invalid_partial() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1303,7 +1641,7 @@ fn test_render_partial_invalid_partial() {
 }
 
 #[test]
-fn test_render_partial_no_content() {
+fn miri_render_partial_no_content() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1317,7 +1655,7 @@ fn test_render_partial_no_content() {
 }
 
 #[test]
-fn test_render_partial_nonexistent_partial() {
+fn miri_render_partial_nonexistent_partial() {
     let loader = FileLoader::try_from(LoaderConfig {
         templates_extension: "error",
         ..LoaderConfig::default()
@@ -1338,7 +1676,7 @@ fn test_render_partial_nonexistent_partial() {
 //////////////////////////////////////
 
 #[test]
-fn test_moostache_error_display_impl() {
+fn miri_iso_moostache_error_display_impl() {
     use MoostacheError::*;
     let mut err = ParseErrorGeneric("".into());
     assert_eq!("error parsing anonymous template", &err.to_string());

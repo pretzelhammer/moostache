@@ -41,6 +41,9 @@ use walkdir::WalkDir;
 #[cfg(test)]
 mod tests;
 
+mod immutable;
+use immutable::ImmutableStr;
+
 /////////////
 // PARSING //
 /////////////
@@ -153,70 +156,30 @@ fn new_input<'src, 'skips>(template: &'src str, skips: &'skips mut Vec<SectionSk
     }
 }
 
-// We need this because we don't want to clone
-// data during parsing, but if we only borrow we
-// then need to store the source string somewhere
-// but we can't store it within Template because
-// that would make Template a self-referential type,
-// e.g. template.fragments would have references that
-// would point to data owned in template.source,
-// and the Rust compiler doesn't like that. So if we
-// receive a source string that is a String we leak it
-// to turn it into a &'static str and store that instead.
-// When Template is dropped StaticStr's drop impl is also
-// called and it reclaims the leaked memory to free it.
-// SAFETY: this can never derive Clone, if it ever needs
-// to be cloned in the future it must impl Clone by hand.
-#[derive(Debug, PartialEq)]
-enum StaticStr {
-    Real(&'static str),
-    Leaked(&'static str),
-}
-
-impl StaticStr {
-    // SAFETY: this method should never be made
-    // public and should only be used internally
-    // in this crate
-    fn as_str(&self) -> &'static str {
-        match self {
-            StaticStr::Real(real) => real,
-            StaticStr::Leaked(leaked) => leaked,
-        }
-    }
-}
-
-// safe Drop impl for leaked Strings
-impl Drop for StaticStr {
-    fn drop(&mut self) {
-        if let StaticStr::Leaked(leaked) = *self {
-            // SAFETY:
-            // - StaticStr cannot derive a Clone impl
-            // - this should only be used within Template
-            //   and remain as a private field
-            let _: Box<str> = unsafe {
-                Box::from_raw(std::ptr::from_ref::<str>(leaked).cast_mut())
-            };
-        }
-    }
-}
-
-impl From<&'static str> for StaticStr {
-    fn from(value: &'static str) -> Self {
-        StaticStr::Real(value)
-    }
-}
-
-impl From<String> for StaticStr {
-    fn from(value: String) -> Self {
-        StaticStr::Leaked(Box::leak(value.into_boxed_str()))
-    }
-}
-
 // parses a source string into a compiled Template
-fn parse<S: Into<StaticStr>>(source: S) -> Result<Template, InternalError> {
-    let source: StaticStr = source.into();
+fn parse<S: Into<ImmutableStr>>(source: S) -> Result<Template, InternalError> {
+    let source: ImmutableStr = source.into();
     let mut skips = Vec::new();
-    let input = new_input(source.as_str(), &mut skips);
+
+    // SAFETY: This is done so we can store
+    // both a String and &str refs to it within
+    // the same struct, e.g. Template. This is
+    // called a self-referential struct and is
+    // not normally allowed by the Rust compiler,
+    // but in this case it's fine because our
+    // code protects the following invariants:
+    // 1. the String is heap-allocated
+    // 2. the String is immutable after creation
+    // 3. static refs into the String are dropped
+    //    before the String is dropped
+    let static_source = unsafe {
+        source.as_static_str()
+    };
+
+    let input = new_input(
+        static_source,
+        &mut skips,
+    );
     match _parse.parse(input) {
         Ok(fragments) => Ok(Template {
             fragments,
@@ -534,15 +497,18 @@ fn parse_partial<'src>(
 /// ```
 #[derive(Debug, PartialEq)]
 pub struct Template {
+    // SAFETY: fragments must be before source in the field
+    // order because it contains refs into source and must
+    // be dropped before source is dropped, also this struct
+    // should never share or leak fragments or source with
+    // any other code
+
     // parsed template fragments
     fragments: Vec<Fragment<'static>>,
     // parsed section skips, i.e. tell us where sections end
     skips: Vec<SectionSkip>,
-    // fragments have references that point into this
-    // string, which would ordinarily make this a self-referential
-    // struct which Rust doesn't allow, but we workaround that
-    // constraint by using this type. See StaticStr for more details.
-    source: StaticStr,
+    // template source
+    source: ImmutableStr,
 }
 
 impl Template {
@@ -555,7 +521,7 @@ impl Template {
     /// if parsing fails for whatever reason.
     #[inline]
     #[allow(private_bounds)]
-    pub fn parse<S: Into<StaticStr>>(source: S) -> Result<Template, MoostacheError> {
+    pub fn parse<S: Into<ImmutableStr>>(source: S) -> Result<Template, MoostacheError> {
         match parse(source) {
             Err(err) => {
                 Err(MoostacheError::from_internal(err, String::new()))
@@ -742,7 +708,7 @@ impl Template {
     }
 }
 
-// note: can't do impl<S: Into<StaticStr> TryFrom<S> below
+// note: can't do impl<S: Into<ImmutableStr> TryFrom<S> below
 // because compiler complains that generic impl overlaps
 // with another generic impl in the std lib, so we do separate
 // impls for &'static str and String
@@ -1136,7 +1102,7 @@ impl TryFrom<LoaderConfig<'_>> for FileLoader {
     }
 }
 
-impl<K: Borrow<str> + Eq + Hash, V: Into<StaticStr>> TryFrom<HashMap<K, V>> for HashMapLoader<K> {
+impl<K: Borrow<str> + Eq + Hash, V: Into<ImmutableStr>> TryFrom<HashMap<K, V>> for HashMapLoader<K> {
     type Error = MoostacheError;
     fn try_from(map: HashMap<K, V>) -> Result<Self, Self::Error> {
         let templates = map

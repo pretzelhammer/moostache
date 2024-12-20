@@ -33,7 +33,7 @@ use moostache::{HashMapLoader, LoaderConfig};
 // into memory and compile them into moostache
 // templates, up to cache_size
 let loader = HashMapLoader::try_from(LoaderConfig {
-    templates_directory: "./templates/",
+    templates_directory: "./templates",
     templates_extension: "html",
     cache_size: 200,
 })?;
@@ -85,7 +85,7 @@ use moostache::{FileLoader, LoaderConfig};
 // renders, and it will cache up to cache_size
 // compiled templates in an internal LRU cache
 let loader = FileLoader::try_from(LoaderConfig {
-    templates_directory: "./templates/",
+    templates_directory: "./templates",
     templates_extension: "html",
     cache_size: 200,
 })?;
