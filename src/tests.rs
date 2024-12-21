@@ -10,19 +10,17 @@ use super::*;
 // run miri (partially isolated) with
 // MIRIFLAGS=-Zmiri-disable-isolation cargo +nightly miri test miri
 
-fn temp_no_skips(source: String, frags: Vec<Fragment<'static>>) -> Template {
+fn temp_no_skips(frags: Vec<Fragment<'static>>) -> Template {
     Template {
-        fragments: frags,
+        fragments: Yoke::new_owned(Fragments(frags)),
         skips: Vec::new(),
-        source: source.into(),
     }
 }
 
-fn temp(source: String, frags: Vec<Fragment<'static>>, skips: Vec<SectionSkip>) -> Template {
+fn temp(frags: Vec<Fragment<'static>>, skips: Vec<SectionSkip>) -> Template {
     Template {
-        fragments: frags,
+        fragments: Yoke::new_owned(Fragments(frags)),
         skips,
-        source: source.into(),
     }
 }
 
@@ -256,7 +254,6 @@ fn miri_iso_parse_literal() {
     let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Literal(source)]
     );
     assert_eq!(template, expected_template);
@@ -267,11 +264,9 @@ fn miri_iso_parse_literal_static() {
     let source = "hello world";
     let template = Template::parse(source)
         .expect("template parsed successfully");
-    let expected_template = Template {
-        source: source.into(),
-        skips: Vec::new(),
-        fragments: vec![Fragment::Literal(source)],
-    };
+    let expected_template = temp_no_skips(
+        vec![Fragment::Literal(source)]
+    );
     assert_eq!(template, expected_template);
 }
 
@@ -281,7 +276,6 @@ fn miri_iso_parse_literal_utf8() {
     let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Literal(source)]
     );
     assert_eq!(template, expected_template);
@@ -293,7 +287,6 @@ fn miri_iso_parse_escaped_var() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::EscapedVariable("name")]
     );
     assert_eq!(template, expected_template);
@@ -305,7 +298,6 @@ fn miri_iso_parse_escaped_var_padded() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::EscapedVariable("name")]
     );
     assert_eq!(template, expected_template);
@@ -317,7 +309,6 @@ fn miri_iso_parse_unescaped_var() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::UnescapedVariable("name")]
     );
     assert_eq!(template, expected_template);
@@ -329,7 +320,6 @@ fn miri_iso_parse_unescaped_var_padded() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::UnescapedVariable("name")]
     );
     assert_eq!(template, expected_template);
@@ -349,7 +339,6 @@ fn miri_iso_parse_section() {
         nested_fragments: 1,
     }];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -370,7 +359,6 @@ fn miri_iso_parse_section_utf8() {
         nested_fragments: 1,
     }];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -383,7 +371,6 @@ fn miri_iso_parse_partial() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Partial("name")],
     );
     assert_eq!(template, expected_template);
@@ -395,7 +382,6 @@ fn miri_iso_parse_partial_padded() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Partial("name")],
     );
     assert_eq!(template, expected_template);
@@ -407,7 +393,6 @@ fn miri_iso_parse_partial_nested() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Partial("name/in/nested/dir".into())],
     );
     assert_eq!(template, expected_template);
@@ -419,7 +404,6 @@ fn miri_iso_parse_partial_nested_padded() {
     let template = Template::parse(source.to_owned())
         .expect("Fragment parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![Fragment::Partial("name/in/nested/dir".into())],
     );
     assert_eq!(template, expected_template);
@@ -431,7 +415,6 @@ fn miri_iso_parse_v1_features() {
     let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![
             Fragment::Literal("prefix ".into()),
             Fragment::EscapedVariable("escaped".into()),
@@ -447,7 +430,6 @@ fn miri_iso_parse_v2_features() {
     let template = Template::parse(source.to_owned())
         .expect("template parsed successfully");
     let expected_template = temp_no_skips(
-        source.to_owned(),
         vec![
             Fragment::Literal("prefix ".into()),
             Fragment::EscapedVariable("escaped".into()),
@@ -481,7 +463,6 @@ fn miri_iso_parse_v3_features() {
         nested_sections: 0,
     }];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -519,7 +500,6 @@ fn miri_iso_parse_v4_features() {
         },
     ];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -557,7 +537,6 @@ fn miri_iso_parse_v4_features_utf8() {
         },
     ];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
@@ -632,7 +611,6 @@ fn miri_iso_parse_heavy_section_nesting() {
         },
     ];
     let expected_template = temp(
-        source.to_owned(),
         expected_frags,
         expected_skips,
     );
