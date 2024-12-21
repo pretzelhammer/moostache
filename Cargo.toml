@@ -27,6 +27,7 @@ serde_json = "1.0.133"
 lru = "0.12.5"
 walkdir = "2.5.0"
 fnv = "1.0.7"
+yoke = { version = "0.7.5", default-features = false, features = ["alloc", "derive"] }
 
 [dev-dependencies]
 serde_derive = "1.0.215"

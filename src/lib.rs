@@ -23,8 +23,9 @@ use winnow::{
     Parser,
     Stateful,
 };
+use yoke::{Yoke, Yokeable};
 use std::{
-    borrow::Borrow,
+    borrow::{Borrow, Cow},
     cell::RefCell,
     collections::HashMap,
     fmt::{Debug, Display},
@@ -40,9 +41,6 @@ use walkdir::WalkDir;
 
 #[cfg(test)]
 mod tests;
-
-mod immutable;
-use immutable::ImmutableStr;
 
 /////////////
 // PARSING //
@@ -157,39 +155,22 @@ fn new_input<'src, 'skips>(template: &'src str, skips: &'skips mut Vec<SectionSk
 }
 
 // parses a source string into a compiled Template
-fn parse<S: Into<ImmutableStr>>(source: S) -> Result<Template, InternalError> {
-    let source: ImmutableStr = source.into();
+fn parse<S: Into<Cow<'static, str>>>(source: S) -> Result<Template, InternalError> {
+    let source = match source.into() {
+        Cow::Owned(s) => Yoke::attach_to_cart(s, |s| &s[..]).wrap_cart_in_option(),
+        Cow::Borrowed(s) => Yoke::new_owned(s),
+    };
     let mut skips = Vec::new();
 
-    // SAFETY: This is done so we can store
-    // both a String and &str refs to it within
-    // the same struct, e.g. Template. This is
-    // called a self-referential struct and is
-    // not normally allowed by the Rust compiler,
-    // but in this case it's fine because our
-    // code protects the following invariants:
-    // 1. the String is heap-allocated
-    // 2. the String is immutable after creation
-    // 3. static refs into the String are dropped
-    //    before the String is dropped
-    let static_source = unsafe {
-        source.as_static_str()
-    };
+    let fragments = source.try_map_project(|source, _| {
+        let input = new_input(source, &mut skips);
+        match _parse.parse(input) {
+            Ok(f) => Ok(Fragments(f)),
+            Err(e) => Err(e.into_inner()),
+        }
+    })?;
 
-    let input = new_input(
-        static_source,
-        &mut skips,
-    );
-    match _parse.parse(input) {
-        Ok(fragments) => Ok(Template {
-            fragments,
-            skips,
-            source
-        }),
-        Err(err) => Err(
-            err.into_inner(),
-        ),
-    }
+    Ok(Template { fragments, skips })
 }
 
 // parses a source string into a compiled Template
@@ -495,20 +476,27 @@ fn parse_partial<'src>(
 /// let rendered = template.render_no_partials_to_string(&data).unwrap();
 /// assert_eq!(rendered, "hello John!");
 /// ```
-#[derive(Debug, PartialEq)]
 pub struct Template {
-    // SAFETY: fragments must be before source in the field
-    // order because it contains refs into source and must
-    // be dropped before source is dropped, also this struct
-    // should never share or leak fragments or source with
-    // any other code
-
     // parsed template fragments
-    fragments: Vec<Fragment<'static>>,
+    fragments: Yoke<Fragments<'static>, Option<String>>,
     // parsed section skips, i.e. tell us where sections end
     skips: Vec<SectionSkip>,
-    // template source
-    source: ImmutableStr,
+}
+#[derive(Yokeable)]
+struct Fragments<'src>(Vec<Fragment<'src>>);
+
+impl Debug for Template {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Template")
+            .field("fragments", &self.fragments.get().0)
+            .field("skips", &self.skips)
+            .finish()
+    }
+}
+impl PartialEq for Template {
+    fn eq(&self, other: &Self) -> bool {
+        self.fragments.get().0 == other.fragments.get().0 && self.skips == other.skips
+    }
 }
 
 impl Template {
@@ -521,7 +509,7 @@ impl Template {
     /// if parsing fails for whatever reason.
     #[inline]
     #[allow(private_bounds)]
-    pub fn parse<S: Into<ImmutableStr>>(source: S) -> Result<Template, MoostacheError> {
+    pub fn parse<S: Into<Cow<'static, str>>>(source: S) -> Result<Template, MoostacheError> {
         match parse(source) {
             Err(err) => {
                 Err(MoostacheError::from_internal(err, String::new()))
@@ -546,7 +534,7 @@ impl Template {
         let mut scopes = Vec::new();
         scopes.push(value);
         _render(
-            &self.fragments,
+            &self.fragments.get().0,
             &self.skips,
             loader,
             &mut scopes,
@@ -1102,7 +1090,7 @@ impl TryFrom<LoaderConfig<'_>> for FileLoader {
     }
 }
 
-impl<K: Borrow<str> + Eq + Hash, V: Into<ImmutableStr>> TryFrom<HashMap<K, V>> for HashMapLoader<K> {
+impl<K: Borrow<str> + Eq + Hash, V: Into<Cow<'static, str>>> TryFrom<HashMap<K, V>> for HashMapLoader<K> {
     type Error = MoostacheError;
     fn try_from(map: HashMap<K, V>) -> Result<Self, Self::Error> {
         let templates = map
@@ -1417,7 +1405,7 @@ fn _render<K: Borrow<str> + Eq + Hash, T: TemplateLoader<K> + ?Sized, W: Write>(
             Fragment::Partial(path) => {
                 let template = loader.get(path)?;
                 _render(
-                    &template.fragments,
+                    &template.fragments.get().0,
                     &template.skips,
                     loader,
                     scopes,
