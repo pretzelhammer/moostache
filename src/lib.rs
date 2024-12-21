@@ -36,6 +36,7 @@ use std::{
     ops::Deref,
     path::{Path, PathBuf, MAIN_SEPARATOR_STR},
     rc::Rc,
+    str,
 };
 use walkdir::WalkDir;
 
@@ -628,6 +629,7 @@ impl Template {
             // SAFETY: templates are utf8 and value
             // is utf8 so we know templates + value
             // will also be utf8
+            debug_assert!(str::from_utf8(&writer).is_ok());
             String::from_utf8_unchecked(writer)
         };
         Ok(rendered)
@@ -810,6 +812,7 @@ pub trait TemplateLoader<K: Borrow<str> + Eq + Hash = String> {
             // SAFETY: templates are utf8 and value
             // is utf8 so we know templates + value
             // will also be utf8
+            debug_assert!(str::from_utf8(&writer).is_ok());
             String::from_utf8_unchecked(writer)
         };
         Ok(rendered)
