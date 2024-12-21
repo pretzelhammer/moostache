@@ -166,8 +166,8 @@ fn parse<S: Into<Cow<'static, str>>>(source: S) -> Result<Template, InternalErro
     let fragments = source.try_map_project(|source, _| {
         let input = new_input(source, &mut skips);
         match _parse.parse(input) {
-            Ok(f) => Ok(Fragments(f)),
-            Err(e) => Err(e.into_inner()),
+            Ok(frags) => Ok(Fragments(frags)),
+            Err(err) => Err(err.into_inner()),
         }
     })?;
 
@@ -509,7 +509,6 @@ impl Template {
     /// Returns a [`MoostacheError`] parse error enum variant
     /// if parsing fails for whatever reason.
     #[inline]
-    #[allow(private_bounds)]
     pub fn parse<S: Into<Cow<'static, str>>>(source: S) -> Result<Template, MoostacheError> {
         match parse(source) {
             Err(err) => {
